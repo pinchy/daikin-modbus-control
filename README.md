@@ -30,17 +30,17 @@ There are plenty of open-source projects that use Daikin's HTTP API, so I figure
 From my router, I knew each unit's IP and I gave the HTTP endpoint a go:
 
 ```
-curl 192.168.50.80/aircon/get_sensor_info
-curl: (7) Failed to connect to 192.168.50.80 port 80 after 5 ms: Couldn't connect to server
+curl 192.168.1.80/aircon/get_sensor_info
+curl: (7) Failed to connect to 192.168.1.80 port 80 after 5 ms: Couldn't connect to server
 ```
 
 Port 80 wasn't even open. OK, what _is_ open?
 
 ```
-nmap -sS -p 1-65535 192.168.50.80
+nmap -sS -p 1-65535 192.168.1.80
 ```
 
-"A few momeents later meme"
+![Moments later](readme/moments-later.png)
 
 ```
 PORT    STATE SERVICE
@@ -51,7 +51,7 @@ PORT    STATE SERVICE
 Two ports. HTTPS and something called `mbap`. I tried HTTPS first — the old API path, just with TLS:
 
 ```
-curl -k -v https://192.168.50.80/common/basic_info
+curl -k -v https://192.168.1.80/common/basic_info
 ```
 
 The connection worked, but:
@@ -65,7 +65,7 @@ The verbose output told the story — the server certificate was issued by `DAIK
 
 502 — that's **Modbus TCP**. An industrial control protocol. On a home air conditioner. I use it at $DAY_JOB. I know this.
 
-I know this Linux meme
+![I know this](readme/unix-system.jpg)
 
 If you're not familiar with Modbus protocol, basically there's a bunch of registers, which can be read only (for say sensor values, like temperature) or they could be read/write (for settings, or turning on things). (I'm glossing, there are other types, e.g. "coils" that were to energise oldschool relay coils and are binary (this is indusrial control remember?), but basically for our purpose, there are read only things and writeable things).
 
@@ -75,7 +75,7 @@ Ok, let's see if we can slither our way to a connection:
 
 ```python
 from pymodbus.client import ModbusTcpClient
-client = ModbusTcpClient('192.168.50.80', port=502)
+client = ModbusTcpClient('192.168.1.80', port=502)
 client.connect()
 result = client.read_holding_registers(address=0, count=10)
 print(result.registers if not result.isError() else result)
@@ -111,7 +111,7 @@ Data in the 2000 range. Ok let's try incrementing by 1. And let's see if I can t
 ```
 python3 -c "
 from pymodbus.client import ModbusTcpClient
-client = ModbusTcpClient('192.168.50.80', port=502)
+client = ModbusTcpClient('192.168.1.80', port=502)
 client.connect()
 
 print('=== HOLDING REGISTERS ===')
@@ -204,9 +204,9 @@ Ok mapping these give sus:
 
 To work out what 512 and 11 are, I'm going to have to change things.
 
-### Confirming I can control it
+### Mapping the Registers
 
-Without changing any other settings, I turned the unit on via the app and ran the scan again. I act
+Without changing any other settings, I turned the unit on via the app and ran the scan again, one register changed:
 
 ```
 HR 2000: 512 -> 513
@@ -235,6 +235,8 @@ quiet -> 11
 3 -> 5
 4 -> 6
 5 -> 7
+
+### Let's change things up
 
 Ok, this is fun, but doesn't help my 2am drowsey self wanting to turn something on.  Let's see if we can control it!
 
