@@ -227,7 +227,7 @@ And although I couldn't see it, as the register immediately changed to the desir
 
 After repeating the same process with fan speed, register 2003 was determined to be the fan speed, auto, quiet, 1,2,3,4,5.
 
-````
+```
 auto -> 0
 quiet -> 11
 1 -> 3
@@ -235,14 +235,15 @@ quiet -> 11
 3 -> 5
 4 -> 6
 5 -> 7
+```
 
 ### Let's change things up
 
-Ok, this is fun, but doesn't help my 2am drowsey self wanting to turn something on.  Let's see if we can control it!
+Ok, this is fun, but doesn't help my 2am drowsey self wanting to turn something on. Let's see if we can control it!
 
 ```python
 result = client.write_register(address=2000, value=512)
-````
+```
 
 **The unit turned off.** Full control, no authentication, no certificates, no cloud. Just register writes over the local network using industrial modbus that I use at work. Love it.
 
