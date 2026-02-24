@@ -1,0 +1,16 @@
+[Unit]
+Description=Daikin Local Control
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=pinchy
+WorkingDirectory=/home/pinchy/aircon
+ExecStart=/home/pinchy/aircon/.venv/bin/python3 /home/pinchy/aircon/app.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+EOF

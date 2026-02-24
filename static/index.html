@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#0a0a0a">
+  <link rel="manifest" href="/manifest.json">
+  <title>Daikin Control</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0a0a0a;
+      --card: #151515;
+      --card-border: #222;
+      --text: #f0f0f0;
+      --text-dim: #666;
+      --text-mid: #999;
+      --cool: #4da6ff;
+      --heat: #ff6b4a;
+      --auto-c: #8b5cf6;
+      --dry: #f59e0b;
+      --fan-c: #10b981;
+      --off: #333;
+      --accent: #4da6ff;
+      --safe-top: env(safe-area-inset-top, 20px);
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+    body {
+      font-family: 'DM Sans', -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100dvh;
+      padding-top: var(--safe-top);
+      padding-bottom: calc(var(--safe-bottom) + 20px);
+      overscroll-behavior: none;
+    }
+
+    /* ─── Header ─────────────────────────── */
+    .header {
+      padding: 16px 20px 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+    }
+    .header h1 {
+      font-size: 28px;
+      font-weight: 600;
+      letter-spacing: -0.5px;
+    }
+    .header .outdoor {
+      font-size: 14px;
+      color: var(--text-mid);
+      font-weight: 400;
+    }
+
+    /* ─── Unit Cards ─────────────────────── */
+    .units {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      padding: 8px 16px;
+    }
+
+    .unit-card {
+      background: var(--card);
+      border: 1px solid var(--card-border);
+      border-radius: 20px;
+      padding: 20px;
+      transition: all 0.3s ease;
+      opacity: 1;
+    }
+    .unit-card.offline {
+      opacity: 0.4;
+      pointer-events: none;
+    }
+    .unit-card.loading {
+      opacity: 0.6;
+    }
+
+    /* Top row: name + power toggle */
+    .unit-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+    .unit-name {
+      font-size: 16px;
+      font-weight: 500;
+      color: var(--text);
+    }
+    .unit-room-temp {
+      font-size: 13px;
+      color: var(--text-dim);
+      margin-top: 2px;
+    }
+
+    /* Power toggle */
+    .power-toggle {
+      width: 52px;
+      height: 30px;
+      border-radius: 15px;
+      background: var(--off);
+      border: none;
+      position: relative;
+      cursor: pointer;
+      transition: background 0.3s ease;
+    }
+    .power-toggle.on { background: var(--accent); }
+    .power-toggle::after {
+      content: '';
+      width: 24px;
+      height: 24px;
+      border-radius: 12px;
+      background: white;
+      position: absolute;
+      top: 3px;
+      left: 3px;
+      transition: transform 0.3s ease;
+    }
+    .power-toggle.on::after {
+      transform: translateX(22px);
+    }
+
+    /* Temperature display + control */
+    .temp-section {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 24px;
+      margin: 16px 0 20px;
+    }
+    .temp-btn {
+      width: 60px;
+      height: 60px;
+      border-radius: 30px;
+      border: 1.5px solid var(--card-border);
+      background: transparent;
+      color: var(--text);
+      font-size: 22px;
+      font-weight: 300;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s ease;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+    .temp-btn:active {
+      background: #222;
+      transform: scale(0.92);
+    }
+    .temp-display {
+      text-align: center;
+      min-width: 100px;
+    }
+    .temp-value {
+      font-size: 48px;
+      font-weight: 300;
+      letter-spacing: -2px;
+      line-height: 1;
+      transition: color 0.3s ease;
+    }
+    .temp-unit {
+      font-size: 20px;
+      font-weight: 300;
+      color: var(--text-dim);
+      vertical-align: super;
+      margin-left: 2px;
+    }
+    .temp-label {
+      font-size: 12px;
+      color: var(--text-dim);
+      margin-top: 4px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    /* Mode selector */
+    .mode-row {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 12px;
+    }
+    .mode-btn {
+      flex: 1;
+      padding: 8px 4px;
+      border-radius: 10px;
+      border: 1px solid var(--card-border);
+      background: transparent;
+      color: var(--text-dim);
+      font-family: inherit;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .mode-btn:active { transform: scale(0.95); }
+    .mode-btn.active-cool {
+      background: rgba(77, 166, 255, 0.15);
+      border-color: var(--cool);
+      color: var(--cool);
+    }
+    .mode-btn.active-heat {
+      background: rgba(255, 107, 74, 0.15);
+      border-color: var(--heat);
+      color: var(--heat);
+    }
+    .mode-btn.active-auto {
+      background: rgba(139, 92, 246, 0.15);
+      border-color: var(--auto-c);
+      color: var(--auto-c);
+    }
+    .mode-btn.active-dry {
+      background: rgba(245, 158, 11, 0.15);
+      border-color: var(--dry);
+      color: var(--dry);
+    }
+    .mode-btn.active-fan {
+      background: rgba(16, 185, 129, 0.15);
+      border-color: var(--fan-c);
+      color: var(--fan-c);
+    }
+
+    /* Fan selector */
+    .fan-row {
+      display: flex;
+      gap: 5px;
+    }
+    .fan-btn {
+      flex: 1;
+      padding: 7px 2px;
+      border-radius: 8px;
+      border: 1px solid var(--card-border);
+      background: transparent;
+      color: var(--text-dim);
+      font-family: inherit;
+      font-size: 11px;
+      font-weight: 400;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .fan-btn:active { transform: scale(0.95); }
+    .fan-btn.active {
+      background: rgba(255, 255, 255, 0.08);
+      border-color: var(--text-mid);
+      color: var(--text);
+    }
+
+    /* Unit off state - dim slightly but keep interactive */
+    .unit-card.unit-off .temp-section,
+    .unit-card.unit-off .mode-row,
+    .unit-card.unit-off .fan-row {
+      opacity: 0.5;
+    }
+
+    /* All-off footer */
+    .footer {
+      padding: 20px 16px;
+      display: flex;
+      gap: 10px;
+    }
+    .footer-btn {
+      flex: 1;
+      padding: 14px;
+      border-radius: 14px;
+      border: 1px solid var(--card-border);
+      background: var(--card);
+      color: var(--text);
+      font-family: inherit;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .footer-btn:active {
+      transform: scale(0.97);
+      background: #1a1a1a;
+    }
+    .footer-btn.danger {
+      border-color: rgba(255, 107, 74, 0.3);
+      color: var(--heat);
+    }
+
+    /* Connection status */
+    .status-bar {
+      text-align: center;
+      padding: 8px;
+      font-size: 12px;
+      color: var(--text-dim);
+    }
+    .status-dot {
+      display: inline-block;
+      width: 6px;
+      height: 6px;
+      border-radius: 3px;
+      background: #10b981;
+      margin-right: 4px;
+      vertical-align: middle;
+    }
+    .status-dot.error { background: var(--heat); }
+
+    /* Loading skeleton */
+    .skeleton {
+      background: linear-gradient(90deg, #151515 25%, #1a1a1a 50%, #151515 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite;
+      border-radius: 20px;
+      height: 240px;
+    }
+    @keyframes shimmer {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Climate</h1>
+  <span class="outdoor" id="outdoor-temp">—</span>
+</div>
+
+<div class="units" id="units-container">
+  <div class="skeleton"></div>
+  <div class="skeleton"></div>
+</div>
+
+<div class="footer">
+  <button class="footer-btn" onclick="allOn()">All On</button>
+  <button class="footer-btn danger" onclick="allOff()">All Off</button>
+</div>
+
+<div class="status-bar" id="status-bar">
+  <span class="status-dot"></span> Connecting…
+</div>
+
+<script>
+const API = '';
+let units = [];
+let debounceTimers = {};
+
+// ─── Data ──────────────────────────────────────────────────────────────
+
+async function fetchUnits() {
+  try {
+    const res = await fetch(`${API}/api/units`);
+    units = await res.json();
+    render();
+    updateStatus(true);
+  } catch (e) {
+    updateStatus(false);
+  }
+}
+
+async function apiPost(unitId, endpoint, body) {
+  try {
+    const res = await fetch(`${API}/api/units/${unitId}/${endpoint}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    return await res.json();
+  } catch (e) {
+    console.error(e);
+    return null;
+  }
+}
+
+// ─── Actions ───────────────────────────────────────────────────────────
+
+async function togglePower(unitId) {
+  const unit = units.find(u => u.id === unitId);
+  if (!unit) return;
+
+  // Optimistic update
+  unit.power = !unit.power;
+  render();
+
+  const result = await apiPost(unitId, 'power', { power: unit.power });
+  // Refresh after short delay to get real state
+  setTimeout(fetchUnits, 800);
+}
+
+async function setMode(unitId, mode) {
+  const unit = units.find(u => u.id === unitId);
+  if (!unit) return;
+
+  unit.mode = mode;
+  render();
+
+  await apiPost(unitId, 'mode', { mode });
+  setTimeout(fetchUnits, 800);
+}
+
+function adjustTemp(unitId, delta) {
+  const unit = units.find(u => u.id === unitId);
+  if (!unit) return;
+
+  const newTemp = Math.max(16, Math.min(30, unit.setpoint + delta));
+  unit.setpoint = newTemp;
+  render();
+
+  // Debounce the API call
+  clearTimeout(debounceTimers[unitId]);
+  debounceTimers[unitId] = setTimeout(async () => {
+    await apiPost(unitId, 'setpoint', { setpoint: newTemp });
+    setTimeout(fetchUnits, 800);
+  }, 500);
+}
+
+async function setFan(unitId, fan) {
+  const unit = units.find(u => u.id === unitId);
+  if (!unit) return;
+
+  unit.fan = fan;
+  render();
+
+  await apiPost(unitId, 'fan', { fan });
+  setTimeout(fetchUnits, 800);
+}
+
+async function allOn() {
+  for (const unit of units) {
+    if (!unit.power && unit.online) {
+      await apiPost(unit.id, 'power', { power: true });
+    }
+  }
+  setTimeout(fetchUnits, 1000);
+}
+
+async function allOff() {
+  for (const unit of units) {
+    if (unit.power && unit.online) {
+      await apiPost(unit.id, 'power', { power: false });
+    }
+  }
+  setTimeout(fetchUnits, 1000);
+}
+
+// ─── Render ────────────────────────────────────────────────────────────
+
+function modeColor(mode) {
+  const map = { cool: 'cool', heat: 'heat', auto: 'auto', dry: 'dry', fan: 'fan' };
+  return map[mode] || 'cool';
+}
+
+function tempColor(mode) {
+  const map = {
+    cool: 'var(--cool)',
+    heat: 'var(--heat)',
+    auto: 'var(--auto-c)',
+    dry: 'var(--dry)',
+    fan: 'var(--fan-c)',
+  };
+  return map[mode] || 'var(--text)';
+}
+
+function render() {
+  const container = document.getElementById('units-container');
+
+  // Update outdoor temp from first online unit
+  const online = units.find(u => u.online && u.outdoor_temp);
+  if (online) {
+    document.getElementById('outdoor-temp').textContent = `${online.outdoor_temp.toFixed(0)}° outside`;
+  }
+
+  container.innerHTML = units.map(unit => {
+    if (!unit.online) {
+      return `
+        <div class="unit-card offline">
+          <div class="unit-top">
+            <div>
+              <div class="unit-name">${unit.name}</div>
+              <div class="unit-room-temp">Offline</div>
+            </div>
+          </div>
+        </div>`;
+    }
+
+    const offClass = unit.power ? '' : 'unit-off';
+    const mc = modeColor(unit.mode);
+    const modes = ['cool', 'heat', 'auto', 'dry', 'fan'];
+    const fans = [
+      { val: 'auto', label: 'Auto' },
+      { val: 'quiet', label: 'Quiet' },
+      { val: '1', label: '1' },
+      { val: '2', label: '2' },
+      { val: '3', label: '3' },
+      { val: '4', label: '4' },
+      { val: '5', label: '5' },
+    ];
+
+    return `
+      <div class="unit-card ${offClass}">
+        <div class="unit-top">
+          <div>
+            <div class="unit-name">${unit.name}</div>
+            <div class="unit-room-temp">${unit.room_temp.toFixed(1)}° inside</div>
+          </div>
+          <button class="power-toggle ${unit.power ? 'on' : ''}"
+                  style="${unit.power ? `background: ${tempColor(unit.mode)}` : ''}"
+                  onclick="togglePower('${unit.id}')"></button>
+        </div>
+
+        <div class="temp-section">
+          <button class="temp-btn" onclick="adjustTemp('${unit.id}', -0.5)">−</button>
+          <div class="temp-display">
+            <span class="temp-value" style="color: ${unit.power ? tempColor(unit.mode) : 'var(--text-dim)'}">
+              ${unit.setpoint.toFixed(unit.setpoint % 1 ? 1 : 0)}<span class="temp-unit">°</span>
+            </span>
+          </div>
+          <button class="temp-btn" onclick="adjustTemp('${unit.id}', 0.5)">+</button>
+        </div>
+
+        <div class="mode-row">
+          ${modes.map(m => `
+            <button class="mode-btn ${unit.mode === m ? 'active-' + mc : ''}"
+                    onclick="setMode('${unit.id}', '${m}')">${m}</button>
+          `).join('')}
+        </div>
+
+        <div class="fan-row">
+          ${fans.map(f => `
+            <button class="fan-btn ${unit.fan === f.val ? 'active' : ''}"
+                    onclick="setFan('${unit.id}', '${f.val}')">${f.label}</button>
+          `).join('')}
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function updateStatus(ok) {
+  const bar = document.getElementById('status-bar');
+  if (ok) {
+    const count = units.filter(u => u.online).length;
+    bar.innerHTML = `<span class="status-dot"></span> ${count} unit${count !== 1 ? 's' : ''} connected · LAN only`;
+  } else {
+    bar.innerHTML = `<span class="status-dot error"></span> Connection error`;
+  }
+}
+
+// ─── Init ──────────────────────────────────────────────────────────────
+
+fetchUnits();
+setInterval(fetchUnits, 10000); // Poll every 10s
+</script>
+</body>
+</html>
